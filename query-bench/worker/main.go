@@ -1,22 +1,49 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"log"
 	"os"
 
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/worker"
 
-	"github.com/temporalio/samples-go/mtls"
 	query "github.com/temporalio/samples-go/query-bench"
+
+	"gopkg.in/DataDog/dd-trace-go.v1/profiler"
 )
 
-func main() {
-	// The client and worker are heavyweight objects that should be created once per process.
-	clientOptions, _, err := mtls.ParseClientOptionFlags(os.Args[1:])
+type WorkerSpec struct {
+	MaxConcurrentWorkflowTaskPollers int
+	TaskQueue                        string
+}
+
+func parseFlags() (client.Options, WorkerSpec) {
+	set := flag.NewFlagSet("query-worker", flag.ContinueOnError)
+	maxConcurrentWorkflowTaskPollers := set.Int("pollers", 10, "Concurrent workflow task pollers")
+	taskQueue := set.String("task-queue", "query", "task queue name to isolate tests")
+
+	clientOptions, err := query.ParseClientOptionFlags(set, os.Args[1:])
 	if err != nil {
-		log.Fatalf("Invalid arguments: %v", err)
+		panic(err)
 	}
+
+	workerSpec := WorkerSpec{
+		MaxConcurrentWorkflowTaskPollers: *maxConcurrentWorkflowTaskPollers,
+		TaskQueue:                        *taskQueue,
+	}
+
+	return clientOptions, workerSpec
+}
+
+func main() {
+	setupProfiler()
+	defer profiler.Stop()
+
+	clientOptions, spec := parseFlags()
+	fmt.Printf("Running worker with spec: %+v\n", spec)
+
 	c, err := client.Dial(clientOptions)
 	if err != nil {
 		log.Fatalln("Unable to create client", err)
@@ -25,13 +52,30 @@ func main() {
 
 	worker.EnableVerboseLogging(true)
 
-	w := worker.New(c, "query", worker.Options{MaxConcurrentWorkflowTaskPollers: 50})
+	w := worker.New(c, spec.TaskQueue, worker.Options{
+		MaxConcurrentWorkflowTaskPollers: spec.MaxConcurrentWorkflowTaskPollers,
+	})
 
-	w.RegisterWorkflow(query.QueryWorkflow)
-	w.RegisterActivity(query.Activity)
+	w.RegisterWorkflow(query.PerformanceWorkflow)
+	w.RegisterActivity(query.MockActivity)
 
 	err = w.Run(worker.InterruptCh())
 	if err != nil {
 		log.Fatalln("Unable to start worker", err)
+	}
+}
+
+func setupProfiler() {
+	err := profiler.Start(
+		profiler.WithService("query-tests"),
+		profiler.WithEnv("dev"),
+		profiler.WithProfileTypes(
+			profiler.CPUProfile,
+			profiler.HeapProfile,
+			profiler.GoroutineProfile,
+		),
+	)
+	if err != nil {
+		log.Fatal(err)
 	}
 }
