@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/google/uuid"
 	"go.temporal.io/sdk/activity"
 	"go.temporal.io/sdk/log"
 	"go.temporal.io/sdk/workflow"
@@ -18,17 +19,11 @@ func Workflow(ctx workflow.Context, name string) error {
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
 
-	logger := workflow.GetLogger(ctx)
-	logger.Info("Logging from workflow", "name", name)
+	logger := WorkflowLogger(ctx)
+	logger.Info("Logging from workflow", "uuid", uuid.New().String())
 
 	var result interface{}
-	err := workflow.ExecuteActivity(ctx, LoggingActivity, name).Get(ctx, &result)
-	if err != nil {
-		logger.Error("LoggingActivity failed.", "Error", err)
-		return err
-	}
-
-	err = workflow.ExecuteActivity(ctx, LoggingErrorAcctivity).Get(ctx, &result)
+	err := workflow.ExecuteActivity(ctx, LoggingActivity, "test").Get(ctx, &result)
 	if err != nil {
 		logger.Error("LoggingActivity failed.", "Error", err)
 		return err
@@ -38,12 +33,20 @@ func Workflow(ctx workflow.Context, name string) error {
 	return nil
 }
 
-func LoggingActivity(ctx context.Context, name string) error {
-	logger := activity.GetLogger(ctx)
-	withLogger := logger.(log.WithLogger).With("activity", "LoggingActivity")
+func WorkflowLogger(ctx workflow.Context) log.Logger {
+	newLogger := workflow.GetLogger(ctx)
+	if ctx != nil {
+		newLogger = newLogger.(log.WithLogger).With("TraceId1", uuid.New().String())
+		newLogger = newLogger.(log.WithLogger).With("TraceId2", uuid.New().String())
+	}
+	return newLogger
+}
 
-	withLogger.Info("Executing LoggingActivity.", "name", name)
-	withLogger.Debug("Debugging LoggingActivity.", "value", "important debug data")
+func LoggingActivity(ctx context.Context, name string) error {
+	time.Sleep(8 * time.Second)
+	logger := activity.GetLogger(ctx)
+	logger.Info("Executing LoggingActivity.", "name", name)
+	logger.Debug("Debugging LoggingActivity.", "value", "important debug data")
 	return nil
 }
 

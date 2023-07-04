@@ -2,6 +2,7 @@ package helloworld
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"go.temporal.io/sdk/activity"
@@ -14,7 +15,9 @@ import (
 // Workflow is a Hello World workflow definition.
 func Workflow(ctx workflow.Context, name string) (string, error) {
 	ao := workflow.ActivityOptions{
-		StartToCloseTimeout: 10 * time.Second,
+		ScheduleToStartTimeout: 10 * time.Second,
+		ScheduleToCloseTimeout: 10 * time.Second,
+		StartToCloseTimeout:    10 * time.Second,
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
 
@@ -36,5 +39,7 @@ func Workflow(ctx workflow.Context, name string) (string, error) {
 func Activity(ctx context.Context, name string) (string, error) {
 	logger := activity.GetLogger(ctx)
 	logger.Info("Activity", "name", name)
+	time.Sleep(20 * time.Second)
+	fmt.Println("Completed the activity")
 	return "Hello " + name + "!", nil
 }
