@@ -4,24 +4,24 @@ Steps to run this sample:
 
 1. Run the following command to start a worker
 ```
-go run query-bench/worker/main.go \
+cd query-bench && go run worker/main.go \
     -target-host "<namespace>.tmprl.cloud:7233" \
     -namespace "<namespace>" \
     -client-cert "<cert path>" \
     -client-key "<key path>" \
-    -task-queue "aws-query-1"
+    -task-queue "query-1"
 ```
 
-2. Run the following command to start workflow followed by query requests
+2. Run the following command to start workflow followed by query requests. Note `-task-queue` can be used to isolate workload between concurrent client and worker pairs.
 ```
-go run query-bench/starter/main.go \
+go run starter/main.go \
     -target-host "<namespace>.tmprl.cloud:7233" \
     -namespace "<namespace>" \
     -client-cert "<cert path>" \
     -client-key "<key path>"
     -iterations 200 \
     -payload-size 32768 \
-    -task-queue "aws-query-1" \
+    -task-queue "query-1" \
     -query-interval-ms 250 \
     -num-workflows 10
 ```
