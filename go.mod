@@ -14,6 +14,8 @@ require (
 	github.com/opentracing/opentracing-go v1.2.0
 	github.com/pborman/uuid v1.2.1
 	github.com/prometheus/client_golang v1.12.1
+	github.com/rivo/uniseg v0.4.4 // indirect
+	github.com/schollz/progressbar/v3 v3.13.1 // indirect
 	github.com/stretchr/testify v1.8.3
 	github.com/uber-go/tally/v4 v4.1.1
 	github.com/uber/jaeger-client-go v2.29.1+incompatible
@@ -27,6 +29,7 @@ require (
 	go.uber.org/multierr v1.7.0
 	go.uber.org/zap v1.20.0
 	golang.org/x/sync v0.3.0 // indirect
+	golang.org/x/term v0.9.0 // indirect
 	golang.org/x/tools v0.9.3 // indirect
 	google.golang.org/grpc v1.55.0
 	gopkg.in/DataDog/dd-trace-go.v1 v1.52.0 // indirect
