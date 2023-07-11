@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/temporalio/samples-go/query-bench"
 	"golang.org/x/sync/errgroup"
 
@@ -53,16 +54,19 @@ func main() {
 	}
 	defer c.Close()
 
-	workflowOptions := client.StartWorkflowOptions{
-		ID:        "query_workflow_" + time.Now().String(),
-		TaskQueue: spec.TaskQueue,
-	}
+	var we client.WorkflowRun
+	for i := 0; i < 1000; i++ {
+		workflowOptions := client.StartWorkflowOptions{
+			ID:        "query_workflow_" + uuid.New().String(),
+			TaskQueue: spec.TaskQueue,
+		}
 
-	we, err := c.ExecuteWorkflow(context.Background(), workflowOptions, query.PerformanceWorkflow, spec.PayloadSize)
-	if err != nil {
-		log.Fatalln("Unable to execute workflow", err)
+		we, err = c.ExecuteWorkflow(context.Background(), workflowOptions, query.PerformanceWorkflow, spec.PayloadSize)
+		if err != nil {
+			log.Fatalln("Unable to execute workflow", err)
+		}
+		log.Println("Started workflow", "WorkflowID", we.GetID(), "RunID", we.GetRunID())
 	}
-	log.Println("Started workflow", "WorkflowID", we.GetID(), "RunID", we.GetRunID())
 
 	log.Println("💤 Sleeping for workflow hydration")
 	time.Sleep(45 * time.Second)

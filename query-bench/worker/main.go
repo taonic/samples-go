@@ -5,12 +5,17 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/worker"
 
 	query "github.com/temporalio/samples-go/query-bench"
+	"github.com/uber-go/tally/v4"
+	"github.com/uber-go/tally/v4/prometheus"
 
+	prom "github.com/prometheus/client_golang/prometheus"
+	sdktally "go.temporal.io/sdk/contrib/tally"
 	"gopkg.in/DataDog/dd-trace-go.v1/profiler"
 )
 
@@ -44,6 +49,10 @@ func main() {
 	clientOptions, spec := parseFlags()
 	fmt.Printf("Running worker with spec: %+v\n", spec)
 
+	clientOptions.MetricsHandler = sdktally.NewMetricsHandler(newPrometheusScope(prometheus.Configuration{
+		ListenAddress: "0.0.0.0:8078",
+		TimerType:     "histogram",
+	}))
 	c, err := client.Dial(clientOptions)
 	if err != nil {
 		log.Fatalln("Unable to create client", err)
@@ -55,6 +64,8 @@ func main() {
 	w := worker.New(c, spec.TaskQueue, worker.Options{
 		MaxConcurrentWorkflowTaskPollers: spec.MaxConcurrentWorkflowTaskPollers,
 	})
+
+	//worker.SetStickyWorkflowCacheSize(0)
 
 	w.RegisterWorkflow(query.PerformanceWorkflow)
 	w.RegisterActivity(query.MockActivity)
@@ -78,4 +89,28 @@ func setupProfiler() {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func newPrometheusScope(c prometheus.Configuration) tally.Scope {
+	reporter, err := c.NewReporter(
+		prometheus.ConfigurationOptions{
+			Registry: prom.NewRegistry(),
+			OnError: func(err error) {
+				log.Println("error in prometheus reporter", err)
+			},
+		},
+	)
+	if err != nil {
+		log.Fatalln("error creating prometheus reporter", err)
+	}
+	scopeOpts := tally.ScopeOptions{
+		CachedReporter:  reporter,
+		Separator:       prometheus.DefaultSeparator,
+		SanitizeOptions: &sdktally.PrometheusSanitizeOptions,
+	}
+	scope, _ := tally.NewRootScope(scopeOpts, time.Second)
+	scope = sdktally.NewPrometheusNamingScope(scope)
+
+	log.Println("prometheus metrics scope created")
+	return scope
 }

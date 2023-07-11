@@ -3,7 +3,6 @@ package query
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"net/http"
@@ -16,8 +15,8 @@ func GenerateQueryResult(payloadSize int) []byte {
 	return make([]byte, payloadSize)
 }
 
-func MockActivity(ctx context.Context) (string, error) {
-	return strings.Repeat(string(time.Now().Nanosecond()), 10), nil
+func MockActivity(ctx context.Context, input string) (string, error) {
+	return input, nil
 }
 
 func PerformanceWorkflow(ctx workflow.Context, payloadSize int) error {
@@ -47,8 +46,9 @@ func PerformanceWorkflow(ctx workflow.Context, payloadSize int) error {
 	}
 
 	// populate workflow state
-	for i := 0; i < 250; i++ {
-		err = workflow.ExecuteActivity(ctx, MockActivity).Get(ctx, nil)
+	for i := 0; i < 100; i++ {
+		var result string
+		err = workflow.ExecuteActivity(ctx, MockActivity, string(GenerateQueryResult(1024*8))).Get(ctx, &result)
 		if err != nil {
 			return err
 		}
