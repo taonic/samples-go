@@ -1,0 +1,6 @@
+version: "3.5"
+services:
+  workflow-workers:
+    container_name: hello-worker
+    image: hello-worker:latest
+    command: ['/go/bin/worker']
